@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Skill Battle App</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f0f0f;
+      color: white;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    header {
+      background: #1f1f1f;
+      padding: 15px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .battle {
+      margin: 15px;
+      padding: 15px;
+      background: #1c1c1c;
+      border-radius: 10px;
+    }
+
+    button {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .vote {
+      background: green;
+      color: white;
+    }
+
+    .submit {
+      background: blue;
+      color: white;
+    }
+
+    .reset {
+      background: red;
+      color: white;
+    }
+
+    input {
+      padding: 8px;
+      width: 80%;
+      margin: 5px;
+    }
+
+    .card {
+      background: #222;
+      margin: 10px;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    .winner {
+      color: gold;
+      font-size: 18px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>⚔️ Skill Battle App</header>
+
+<div class="battle">
+  <h2>🔥 Today’s Battle</h2>
+  <h3>⚽ Football vs 🎤 Singing</h3>
+</div>
+
+<!-- SUBMISSION -->
+<div class="card">
+  <h3>📤 Join Battle</h3>
+  <input id="name" placeholder="Your name">
+  <input id="side" placeholder="Football or Singing">
+  <input id="link" placeholder="Video link (optional)">
+  <button class="submit" onclick="submitEntry()">Submit</button>
+</div>
+
+<!-- VOTING -->
+<div class="card">
+  <h3>🗳️ Vote</h3>
+
+  <p>⚽ Football Votes: <span id="footballVotes">0</span></p>
+  <button class="vote" onclick="vote('football')">Vote Football</button>
+
+  <p>🎤 Singing Votes: <span id="singingVotes">0</span></p>
+  <button class="vote" onclick="vote('singing')">Vote Singing</button>
+</div>
+
+<!-- WINNER -->
+<div class="card">
+  <h3>🏆 Winner</h3>
+  <p id="winner">No votes yet</p>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="card">
+  <h3>📊 Leaderboard</h3>
+  <div id="leaderboard"></div>
+</div>
+
+<button class="reset" onclick="resetAll()">Reset Day</button>
+
+<script>
+let footballVotes = localStorage.getItem("footballVotes") || 0;
+let singingVotes = localStorage.getItem("singingVotes") || 0;
+
+let entries = JSON.parse(localStorage.getItem("entries")) || [];
+
+function vote(type) {
+  if (type === "football") footballVotes++;
+  if (type === "singing") singingVotes++;
+
+  save();
+  update();
+}
+
+function submitEntry() {
+  let name = document.getElementById("name").value;
+  let side = document.getElementById("side").value;
+  let link = document.getElementById("link").value;
+
+  if (!name || !side) {
+    alert("Fill name and side!");
+    return;
+  }
+
+  entries.push({ name, side, link });
+
+  localStorage.setItem("entries", JSON.stringify(entries));
+
+  alert("Submitted!");
+  updateLeaderboard();
+}
+
+function update() {
+  document.getElementById("footballVotes").innerText = footballVotes;
+  document.getElementById("singingVotes").innerText = singingVotes;
+
+  let winnerText = "";
+
+  if (footballVotes == singingVotes) {
+    winnerText = "It's a tie ⚔️";
+  } else if (footballVotes > singingVotes) {
+    winnerText = "⚽ Football is leading";
+  } else {
+    winnerText = "🎤 Singing is leading";
+  }
+
+  document.getElementById("winner").innerText = winnerText;
+
+  save();
+}
+
+function save() {
+  localStorage.setItem("footballVotes", footballVotes);
+  localStorage.setItem("singingVotes", singingVotes);
+}
+
+function resetAll() {
+  footballVotes = 0;
+  singingVotes = 0;
+  localStorage.removeItem("entries");
+  entries = [];
+  save();
+  update();
+  updateLeaderboard();
+}
+
+function updateLeaderboard() {
+  let box = document.getElementById("leaderboard");
+  box.innerHTML = "";
+
+  if (entries.length === 0) {
+    box.innerHTML = "No entries yet";
+    return;
+  }
+
+  entries.forEach((e, i) => {
+    box.innerHTML += `
+      <p>
+        ${i+1}. ${e.name} - ${e.side}
+        ${e.link ? "🔗" : ""}
+      </p>
+    `;
+  });
+}
+
+update();
+updateLeaderboard();
+</script>
+
+</body>
+</html>
