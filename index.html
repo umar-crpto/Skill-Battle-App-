@@ -1,102 +1,87 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Skill Battle App</title>
-  <style>
-    body {
-      font-family: Arial;
-      background: #0f0f0f;
-      color: white;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
+<meta charset="UTF-8">
+<title>Skill Battle</title>
 
-    header {
-      background: #1f1f1f;
-      padding: 15px;
-      font-size: 22px;
-      font-weight: bold;
-    }
+<style>
+body {
+  font-family: Arial;
+  background: #0f0f0f;
+  color: white;
+  text-align: center;
+}
 
-    .battle {
-      margin: 15px;
-      padding: 15px;
-      background: #1c1c1c;
-      border-radius: 10px;
-    }
+header {
+  background: #1c1c1c;
+  padding: 15px;
+  font-size: 22px;
+}
 
-    button {
-      padding: 10px;
-      margin: 5px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+.card {
+  background: #1e1e1e;
+  margin: 10px;
+  padding: 15px;
+  border-radius: 10px;
+}
 
-    .vote {
-      background: green;
-      color: white;
-    }
+input {
+  width: 80%;
+  padding: 8px;
+  margin: 5px;
+}
 
-    .submit {
-      background: blue;
-      color: white;
-    }
+button {
+  padding: 10px;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+}
 
-    .reset {
-      background: red;
-      color: white;
-    }
+.vote { background: green; color: white; }
+.submit { background: blue; color: white; }
 
-    input {
-      padding: 8px;
-      width: 80%;
-      margin: 5px;
-    }
+.videoBox {
+  background: black;
+  padding: 10px;
+  margin-top: 10px;
+}
 
-    .card {
-      background: #222;
-      margin: 10px;
-      padding: 10px;
-      border-radius: 10px;
-    }
-
-    .winner {
-      color: gold;
-      font-size: 18px;
-      font-weight: bold;
-    }
-  </style>
+a { color: yellow; }
+</style>
 </head>
 
 <body>
 
-<header>⚔️ Skill Battle App</header>
+<header>⚔️ Skill Battle V2</header>
 
-<div class="battle">
-  <h2>🔥 Today’s Battle</h2>
-  <h3>⚽ Football vs 🎤 Singing</h3>
+<div class="card">
+  <h2 id="battleTitle">Loading battle...</h2>
 </div>
 
-<!-- SUBMISSION -->
+<!-- SUBMIT VIDEO -->
 <div class="card">
-  <h3>📤 Join Battle</h3>
+  <h3>📤 Submit Your Skill</h3>
   <input id="name" placeholder="Your name">
-  <input id="side" placeholder="Football or Singing">
-  <input id="link" placeholder="Video link (optional)">
-  <button class="submit" onclick="submitEntry()">Submit</button>
+  <input id="side" placeholder="Football / Singing">
+  <input id="video" placeholder="Video link (TikTok/YouTube)">
+  <button class="submit" onclick="submit()">Submit</button>
+</div>
+
+<!-- VIDEOS -->
+<div class="card">
+  <h3>🎥 Battle Videos</h3>
+  <div id="videos"></div>
 </div>
 
 <!-- VOTING -->
 <div class="card">
   <h3>🗳️ Vote</h3>
 
-  <p>⚽ Football Votes: <span id="footballVotes">0</span></p>
+  <p>⚽ Football: <span id="fVotes">0</span></p>
   <button class="vote" onclick="vote('football')">Vote Football</button>
 
-  <p>🎤 Singing Votes: <span id="singingVotes">0</span></p>
+  <p>🎤 Singing: <span id="sVotes">0</span></p>
   <button class="vote" onclick="vote('singing')">Vote Singing</button>
 </div>
 
@@ -106,101 +91,96 @@
   <p id="winner">No votes yet</p>
 </div>
 
-<!-- LEADERBOARD -->
-<div class="card">
-  <h3>📊 Leaderboard</h3>
-  <div id="leaderboard"></div>
-</div>
-
-<button class="reset" onclick="resetAll()">Reset Day</button>
-
 <script>
-let footballVotes = localStorage.getItem("footballVotes") || 0;
-let singingVotes = localStorage.getItem("singingVotes") || 0;
 
-let entries = JSON.parse(localStorage.getItem("entries")) || [];
+// DAILY BATTLE SYSTEM
+let battles = [
+  "⚽ Football vs 🎤 Singing",
+  "🏀 Basketball vs 🎮 Gaming",
+  "💃 Dance vs 🎤 Rap",
+  "🎨 Art vs 📸 Photography",
+  "🏃 Running vs 🧠 IQ Challenge"
+];
+
+// pick today’s battle
+let todayIndex = new Date().getDate() % battles.length;
+let todayBattle = battles[todayIndex];
+
+document.getElementById("battleTitle").innerText = todayBattle;
+
+// storage
+let fVotes = localStorage.getItem("fVotes") || 0;
+let sVotes = localStorage.getItem("sVotes") || 0;
+
+let videos = JSON.parse(localStorage.getItem("videos")) || [];
 
 function vote(type) {
-  if (type === "football") footballVotes++;
-  if (type === "singing") singingVotes++;
+  if (type === "football") fVotes++;
+  if (type === "singing") sVotes++;
 
   save();
   update();
 }
 
-function submitEntry() {
+function submit() {
   let name = document.getElementById("name").value;
   let side = document.getElementById("side").value;
-  let link = document.getElementById("link").value;
+  let video = document.getElementById("video").value;
 
   if (!name || !side) {
-    alert("Fill name and side!");
+    alert("Fill all fields");
     return;
   }
 
-  entries.push({ name, side, link });
+  videos.push({ name, side, video });
+  localStorage.setItem("videos", JSON.stringify(videos));
 
-  localStorage.setItem("entries", JSON.stringify(entries));
-
+  renderVideos();
   alert("Submitted!");
-  updateLeaderboard();
+}
+
+function renderVideos() {
+  let box = document.getElementById("videos");
+  box.innerHTML = "";
+
+  if (videos.length === 0) {
+    box.innerHTML = "No videos yet";
+    return;
+  }
+
+  videos.forEach(v => {
+    box.innerHTML += `
+      <div class="videoBox">
+        <p><b>${v.name}</b> - ${v.side}</p>
+        <a href="${v.video}" target="_blank">Watch Video</a>
+      </div>
+    `;
+  });
 }
 
 function update() {
-  document.getElementById("footballVotes").innerText = footballVotes;
-  document.getElementById("singingVotes").innerText = singingVotes;
+  document.getElementById("fVotes").innerText = fVotes;
+  document.getElementById("sVotes").innerText = sVotes;
 
-  let winnerText = "";
+  let winner = "";
 
-  if (footballVotes == singingVotes) {
-    winnerText = "It's a tie ⚔️";
-  } else if (footballVotes > singingVotes) {
-    winnerText = "⚽ Football is leading";
-  } else {
-    winnerText = "🎤 Singing is leading";
-  }
+  if (fVotes == sVotes) winner = "Tie ⚔️";
+  else if (fVotes > sVotes) winner = "⚽ Football wins";
+  else winner = "🎤 Singing wins";
 
-  document.getElementById("winner").innerText = winnerText;
+  document.getElementById("winner").innerText = winner;
 
   save();
 }
 
 function save() {
-  localStorage.setItem("footballVotes", footballVotes);
-  localStorage.setItem("singingVotes", singingVotes);
+  localStorage.setItem("fVotes", fVotes);
+  localStorage.setItem("sVotes", sVotes);
 }
 
-function resetAll() {
-  footballVotes = 0;
-  singingVotes = 0;
-  localStorage.removeItem("entries");
-  entries = [];
-  save();
-  update();
-  updateLeaderboard();
-}
-
-function updateLeaderboard() {
-  let box = document.getElementById("leaderboard");
-  box.innerHTML = "";
-
-  if (entries.length === 0) {
-    box.innerHTML = "No entries yet";
-    return;
-  }
-
-  entries.forEach((e, i) => {
-    box.innerHTML += `
-      <p>
-        ${i+1}. ${e.name} - ${e.side}
-        ${e.link ? "🔗" : ""}
-      </p>
-    `;
-  });
-}
-
+renderVideos();
 update();
-updateLeaderboard();
+
 </script>
 
 </body>
