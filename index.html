@@ -10,6 +10,7 @@ body {
   background: #0f0f0f;
   color: white;
   text-align: center;
+  margin: 0;
 }
 
 header {
@@ -25,11 +26,18 @@ header {
   border-radius: 10px;
 }
 
+input {
+  width: 80%;
+  padding: 8px;
+  margin: 5px;
+}
+
 button {
   padding: 10px;
   margin: 5px;
   border: none;
   border-radius: 5px;
+  cursor: pointer;
 }
 
 .vote { background: green; color: white; }
@@ -37,7 +45,7 @@ button {
 .submit { background: blue; color: white; }
 
 .videoBox {
-  background: black;
+  background: #000;
   margin: 10px;
   padding: 10px;
   border-radius: 10px;
@@ -49,24 +57,24 @@ a { color: yellow; }
 
 <body>
 
-<header>⚔️ Skill Battle (FIXED)</header>
+<header>⚔️ Skill Battle App</header>
 
 <div class="card">
   <h2>⚽ Football vs 🎤 Singing</h2>
 </div>
 
-<!-- SUBMIT -->
+<!-- SUBMIT ENTRY -->
 <div class="card">
   <h3>📤 Submit Entry</h3>
 
   <input id="name" placeholder="Your name">
   <input id="side" placeholder="Football or Singing">
-  <input id="video" placeholder="Video link (TikTok/YouTube)">
+  <input id="video" placeholder="Video link (must start with https://)">
 
   <button class="submit" onclick="submitEntry()">Submit</button>
 </div>
 
-<!-- VIDEOS -->
+<!-- ENTRIES -->
 <div class="card">
   <h3>🎥 Entries</h3>
   <div id="videos"></div>
@@ -93,14 +101,10 @@ a { color: yellow; }
 
 <script>
 
-/* REAL FIX: one user vote tracking */
-let userVote = localStorage.getItem("userVote") || "";
-
-/* votes */
 let fVotes = parseInt(localStorage.getItem("fVotes")) || 0;
 let sVotes = parseInt(localStorage.getItem("sVotes")) || 0;
+let userVote = localStorage.getItem("userVote") || "";
 
-/* entries */
 let videos = JSON.parse(localStorage.getItem("videos")) || [];
 
 /* SUBMIT ENTRY */
@@ -110,7 +114,13 @@ function submitEntry() {
   let video = document.getElementById("video").value;
 
   if (!name || !side) {
-    alert("Fill all fields");
+    alert("Fill name and side");
+    return;
+  }
+
+  // FIX: prevent fake links causing 404
+  if (video && !video.startsWith("http")) {
+    alert("Video link must start with https://");
     return;
   }
 
@@ -124,14 +134,11 @@ function submitEntry() {
 /* VOTE */
 function vote(type) {
 
-  // if already voted
   if (userVote === type) return;
 
-  // if switching vote
   if (userVote === "football") fVotes--;
   if (userVote === "singing") sVotes--;
 
-  // add new vote
   if (type === "football") fVotes++;
   if (type === "singing") sVotes++;
 
@@ -162,7 +169,7 @@ function save() {
   localStorage.setItem("userVote", userVote);
 }
 
-/* UPDATE UI */
+/* UPDATE WINNER */
 function update() {
 
   document.getElementById("fVotes").innerText = fVotes;
@@ -177,8 +184,9 @@ function update() {
   document.getElementById("winner").innerText = winner;
 }
 
-/* SHOW VIDEOS */
+/* SHOW ENTRIES */
 function renderVideos() {
+
   let box = document.getElementById("videos");
   box.innerHTML = "";
 
@@ -188,11 +196,16 @@ function renderVideos() {
   }
 
   videos.forEach(v => {
+
     box.innerHTML += `
       <div class="videoBox">
         <b>${v.name}</b> - ${v.side}
-        <br>
-        <a href="${v.video}" target="_blank">Watch</a>
+        <br><br>
+        ${
+          v.video && v.video.startsWith("http")
+          ? `<a href="${v.video}" target="_blank">▶ Watch Video</a>`
+          : `<p style="color:red;">No valid video link</p>`
+        }
       </div>
     `;
   });
