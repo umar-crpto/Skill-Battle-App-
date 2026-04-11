@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Skill Battle Fixed</title>
+<title>Skill Battle</title>
 
 <style>
 body {
@@ -10,13 +10,6 @@ body {
   background: #0f0f0f;
   color: white;
   text-align: center;
-  margin: 0;
-}
-
-header {
-  background: #1c1c1c;
-  padding: 15px;
-  font-size: 22px;
 }
 
 .card {
@@ -26,114 +19,133 @@ header {
   border-radius: 10px;
 }
 
-input {
-  width: 80%;
-  padding: 8px;
-  margin: 5px;
-}
-
 button {
   padding: 10px;
   margin: 5px;
   border: none;
   border-radius: 5px;
-  cursor: pointer;
 }
 
 .vote { background: green; color: white; }
 .unvote { background: red; color: white; }
-.submit { background: blue; color: white; }
+.upload { background: blue; color: white; }
 
-.videoBox {
-  background: #000;
-  margin: 10px;
-  padding: 10px;
+video {
+  width: 90%;
+  margin-top: 10px;
   border-radius: 10px;
 }
-
-a { color: yellow; }
 </style>
 </head>
 
 <body>
 
-<header>⚔️ Skill Battle App</header>
+<h2>⚔️ Skill Battle</h2>
+<h3>⚽ Football vs 🎤 Singing</h3>
 
 <div class="card">
-  <h2>⚽ Football vs 🎤 Singing</h2>
-</div>
-
-<!-- SUBMIT ENTRY -->
-<div class="card">
-  <h3>📤 Submit Entry</h3>
-
+  <h3>📤 Upload Video</h3>
+  <input type="file" id="file">
   <input id="name" placeholder="Your name">
   <input id="side" placeholder="Football or Singing">
-  <input id="video" placeholder="Video link (must start with https://)">
-
-  <button class="submit" onclick="submitEntry()">Submit</button>
+  <br>
+  <button class="upload" onclick="uploadVideo()">Upload</button>
 </div>
 
-<!-- ENTRIES -->
 <div class="card">
-  <h3>🎥 Entries</h3>
+  <h3>🎥 Videos</h3>
   <div id="videos"></div>
 </div>
 
-<!-- VOTING -->
 <div class="card">
-  <h3>🗳️ Vote System</h3>
+  <h3>🗳️ Vote</h3>
 
-  <p>⚽ Football: <span id="fVotes">0</span></p>
-  <button class="vote" onclick="vote('football')">Vote Football</button>
+  <p>Football: <span id="fVotes">0</span></p>
+  <button class="vote" onclick="vote('football')">Vote</button>
   <button class="unvote" onclick="unvote('football')">Unvote</button>
 
-  <p>🎤 Singing: <span id="sVotes">0</span></p>
-  <button class="vote" onclick="vote('singing')">Vote Singing</button>
+  <p>Singing: <span id="sVotes">0</span></p>
+  <button class="vote" onclick="vote('singing')">Vote</button>
   <button class="unvote" onclick="unvote('singing')">Unvote</button>
 </div>
 
-<!-- WINNER -->
 <div class="card">
   <h3>🏆 Winner</h3>
   <p id="winner"></p>
 </div>
 
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
+
 <script>
+// YOUR CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyDaMzXq5V2c1KIeb_n-4FRx5zvRqU5mGYg",
+  authDomain: "skill-battle-app-1.firebaseapp.com",
+  projectId: "skill-battle-app-1",
+  storageBucket: "skill-battle-app-1.firebasestorage.app",
+  messagingSenderId: "225198548387",
+  appId: "1:225198548387:web:81078805f48d021603a616"
+};
 
-let fVotes = parseInt(localStorage.getItem("fVotes")) || 0;
-let sVotes = parseInt(localStorage.getItem("sVotes")) || 0;
-let userVote = localStorage.getItem("userVote") || "";
+firebase.initializeApp(firebaseConfig);
 
-let videos = JSON.parse(localStorage.getItem("videos")) || [];
+const storage = firebase.storage();
+const db = firebase.database();
 
-/* SUBMIT ENTRY */
-function submitEntry() {
+/* UPLOAD VIDEO */
+function uploadVideo() {
+  let file = document.getElementById("file").files[0];
   let name = document.getElementById("name").value;
-  let side = document.getElementById("side").value.toLowerCase();
-  let video = document.getElementById("video").value;
+  let side = document.getElementById("side").value;
 
-  if (!name || !side) {
-    alert("Fill name and side");
+  if (!file || !name || !side) {
+    alert("Fill all fields");
     return;
   }
 
-  // FIX: prevent fake links causing 404
-  if (video && !video.startsWith("http")) {
-    alert("Video link must start with https://");
-    return;
-  }
+  let ref = storage.ref("videos/" + Date.now());
 
-  videos.push({ name, side, video });
-  localStorage.setItem("videos", JSON.stringify(videos));
+  ref.put(file).then(() => {
+    ref.getDownloadURL().then(url => {
 
-  renderVideos();
-  alert("Entry submitted!");
+      db.ref("videos").push({
+        name: name,
+        side: side,
+        url: url
+      });
+
+      alert("Uploaded!");
+    });
+  });
 }
 
-/* VOTE */
-function vote(type) {
+/* LOAD VIDEOS */
+db.ref("videos").on("value", snap => {
+  let data = snap.val();
+  let box = document.getElementById("videos");
+  box.innerHTML = "";
 
+  for (let id in data) {
+    let v = data[id];
+
+    box.innerHTML += `
+      <div>
+        <b>${v.name}</b> - ${v.side}<br>
+        <video controls src="${v.url}"></video>
+      </div>
+    `;
+  }
+});
+
+/* VOTING */
+let fVotes = 0;
+let sVotes = 0;
+let userVote = "";
+
+function vote(type) {
   if (userVote === type) return;
 
   if (userVote === "football") fVotes--;
@@ -143,77 +155,31 @@ function vote(type) {
   if (type === "singing") sVotes++;
 
   userVote = type;
-
-  save();
   update();
 }
 
-/* UNVOTE */
 function unvote(type) {
-
   if (userVote !== type) return;
 
   if (type === "football") fVotes--;
   if (type === "singing") sVotes--;
 
   userVote = "";
-
-  save();
   update();
 }
 
-/* SAVE */
-function save() {
-  localStorage.setItem("fVotes", fVotes);
-  localStorage.setItem("sVotes", sVotes);
-  localStorage.setItem("userVote", userVote);
-}
-
-/* UPDATE WINNER */
 function update() {
-
   document.getElementById("fVotes").innerText = fVotes;
   document.getElementById("sVotes").innerText = sVotes;
 
   let winner = "";
 
-  if (fVotes > sVotes) winner = "⚽ Football is winning";
-  else if (sVotes > fVotes) winner = "🎤 Singing is winning";
-  else winner = "Tie ⚔️";
+  if (fVotes > sVotes) winner = "Football winning";
+  else if (sVotes > fVotes) winner = "Singing winning";
+  else winner = "Tie";
 
   document.getElementById("winner").innerText = winner;
 }
-
-/* SHOW ENTRIES */
-function renderVideos() {
-
-  let box = document.getElementById("videos");
-  box.innerHTML = "";
-
-  if (videos.length === 0) {
-    box.innerHTML = "No entries yet";
-    return;
-  }
-
-  videos.forEach(v => {
-
-    box.innerHTML += `
-      <div class="videoBox">
-        <b>${v.name}</b> - ${v.side}
-        <br><br>
-        ${
-          v.video && v.video.startsWith("http")
-          ? `<a href="${v.video}" target="_blank">▶ Watch Video</a>`
-          : `<p style="color:red;">No valid video link</p>`
-        }
-      </div>
-    `;
-  });
-}
-
-renderVideos();
-update();
-
 </script>
 
 </body>
