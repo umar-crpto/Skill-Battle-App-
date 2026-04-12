@@ -44,7 +44,7 @@ video {
 <h3>⚽ Football vs 🎤 Singing</h3>
 
 <div class="card">
-  <h3 id="timer">⏳ Loading timer...</h3>
+  <h3 id="timer">⏳ Loading...</h3>
 </div>
 
 <div class="card">
@@ -65,11 +65,10 @@ video {
 
   <p>⚽ Football: <span id="fVotes">0</span></p>
   <button class="vote" onclick="vote('football')">Vote</button>
-  <button class="unvote" onclick="unvote('football')">Unvote</button>
+  <button class="unvote" onclick="unvote()">Unvote</button>
 
   <p>🎤 Singing: <span id="sVotes">0</span></p>
   <button class="vote" onclick="vote('singing')">Vote</button>
-  <button class="unvote" onclick="unvote('singing')">Unvote</button>
 </div>
 
 <div class="card">
@@ -99,9 +98,16 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const storage = firebase.storage();
 
-let userVote = localStorage.getItem("userVote") || "";
+/* ---------------- USER ID SYSTEM ---------------- */
 
-/* ---------------- VIDEOS ---------------- */
+let userId = localStorage.getItem("userId");
+
+if (!userId) {
+  userId = "user_" + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem("userId", userId);
+}
+
+/* ---------------- VIDEO UPLOAD ---------------- */
 
 function uploadVideo() {
   let file = document.getElementById("file").files[0];
@@ -127,6 +133,8 @@ function uploadVideo() {
   });
 }
 
+/* ---------------- LOAD VIDEOS ---------------- */
+
 db.ref("videos").on("value", snap => {
   let data = snap.val() || {};
   let box = document.getElementById("videos");
@@ -134,7 +142,6 @@ db.ref("videos").on("value", snap => {
 
   for (let id in data) {
     let v = data[id];
-
     box.innerHTML += `
       <div>
         <b>${v.name}</b> - ${v.side}<br>
@@ -144,70 +151,43 @@ db.ref("videos").on("value", snap => {
   }
 });
 
-/* ---------------- VOTES (FIXED) ---------------- */
+/* ---------------- VOTING SYSTEM FIXED ---------------- */
 
-// auto create votes if missing
-db.ref("votes").once("value").then(snap => {
-  if (!snap.exists()) {
-    db.ref("votes").set({ football: 0, singing: 0 });
-  }
-});
+function vote(choice) {
+  db.ref("votes/" + userId).set(choice);
+}
+
+function unvote() {
+  db.ref("votes/" + userId).remove();
+}
+
+/* ---------------- COUNT VOTES ---------------- */
 
 db.ref("votes").on("value", snap => {
-  let data = snap.val() || { football: 0, singing: 0 };
 
-  document.getElementById("fVotes").innerText = data.football;
-  document.getElementById("sVotes").innerText = data.singing;
+  let data = snap.val() || {};
 
-  updateWinner(data);
+  let football = 0;
+  let singing = 0;
+
+  for (let user in data) {
+    if (data[user] === "football") football++;
+    if (data[user] === "singing") singing++;
+  }
+
+  document.getElementById("fVotes").innerText = football;
+  document.getElementById("sVotes").innerText = singing;
+
+  updateWinner(football, singing);
 });
 
-function vote(type) {
+/* ---------------- WINNER ---------------- */
 
-  db.ref("votes").once("value").then(snap => {
-
-    let data = snap.val() || { football: 0, singing: 0 };
-
-    if (userVote === "football") data.football--;
-    if (userVote === "singing") data.singing--;
-
-    if (type === "football") data.football++;
-    if (type === "singing") data.singing++;
-
-    data.football = Math.max(0, data.football);
-    data.singing = Math.max(0, data.singing);
-
-    db.ref("votes").set(data);
-
-    userVote = type;
-    localStorage.setItem("userVote", type);
-  });
-}
-
-function unvote(type) {
-
-  db.ref("votes").once("value").then(snap => {
-
-    let data = snap.val() || { football: 0, singing: 0 };
-
-    if (type === "football") data.football--;
-    if (type === "singing") data.singing--;
-
-    data.football = Math.max(0, data.football);
-    data.singing = Math.max(0, data.singing);
-
-    db.ref("votes").set(data);
-
-    userVote = "";
-    localStorage.removeItem("userVote");
-  });
-}
-
-function updateWinner(data) {
+function updateWinner(f, s) {
   let winner = "";
 
-  if (data.football > data.singing) winner = "⚽ Football is winning";
-  else if (data.singing > data.football) winner = "🎤 Singing is winning";
+  if (f > s) winner = "⚽ Football is winning";
+  else if (s > f) winner = "🎤 Singing is winning";
   else winner = "⚔️ Tie";
 
   document.getElementById("winner").innerText = winner;
@@ -228,47 +208,17 @@ function updateTimer() {
 
   if (remaining <= 0) {
     document.getElementById("timer").innerText = "🔥 Battle Ended!";
-    announceWinner();
     return;
   }
 
-  let minutes = Math.floor(remaining / 60000);
-  let seconds = Math.floor((remaining % 60000) / 1000);
+  let m = Math.floor(remaining / 60000);
+  let s = Math.floor((remaining % 60000) / 1000);
 
-  document.getElementById("timer").innerText =
-    `⏳ ${minutes}m ${seconds}s`;
+  document.getElementById("timer").innerText = `⏳ ${m}m ${s}s`;
 }
 
 setInterval(updateTimer, 1000);
 updateTimer();
-
-/* ---------------- WINNER ---------------- */
-
-function announceWinner() {
-
-  db.ref("votes").once("value").then(snap => {
-    let data = snap.val() || { football: 0, singing: 0 };
-
-    let result = "";
-
-    if (data.football > data.singing)
-      result = "🏆 WINNER: Football";
-    else if (data.singing > data.football)
-      result = "🏆 WINNER: Singing";
-    else
-      result = "🏆 Tie";
-
-    document.getElementById("winner").innerText = result;
-
-    setTimeout(() => {
-      db.ref("votes").set({ football: 0, singing: 0 });
-
-      let newTime = Date.now() + (60 * 60 * 1000);
-      localStorage.setItem("endTime", newTime);
-
-    }, 5000);
-  });
-}
 
 </script>
 
