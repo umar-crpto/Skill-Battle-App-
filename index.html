@@ -1,93 +1,89 @@
-HTML
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Skill Battle</title>
+  <title>Skill Battle App</title>
 
-<style>
-body {
-  font-family: Arial;
-  background: #0f0f0f;
-  color: white;
-  text-align: center;
-}
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
-.card {
-  background: #1e1e1e;
-  margin: 10px;
-  padding: 15px;
-  border-radius: 10px;
-}
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f0f0f;
+      color: white;
+    }
 
-button {
-  padding: 10px;
-  margin: 5px;
-  border: none;
-  border-radius: 5px;
-}
+    #feed {
+      height: 100vh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+    }
 
-.vote { background: green; color: white; }
-.unvote { background: red; color: white; }
-.upload { background: blue; color: white; }
+    .card {
+      height: 100vh;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 20px;
+    }
 
-video {
-  width: 90%;
-  margin-top: 10px;
-  border-radius: 10px;
-}
-</style>
+    button {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      background: #ff0050;
+      color: white;
+    }
+
+    video, img, audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    #joinModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: black;
+      padding: 20px;
+    }
+  </style>
 </head>
 
 <body>
 
-<h2>⚔️ Skill Battle</h2>
-<h3>⚽ Football vs 🎤 Singing</h3>
+<h2>Create Battle</h2>
+<input id="creatorA" placeholder="Creator A name">
+<input id="optionA" placeholder="Option A">
+<input id="creatorB" placeholder="Creator B name">
+<input id="optionB" placeholder="Option B">
+<button onclick="createBattle()">Start Battle</button>
 
-<div class="card">
-  <h3 id="timer">⏳ Loading...</h3>
+<div id="feed"></div>
+
+<!-- JOIN MODAL -->
+<div id="joinModal">
+  <h2>Join Battle</h2>
+
+  <select id="team">
+    <option value="A">Team A</option>
+    <option value="B">Team B</option>
+  </select>
+
+  <input type="file" id="fileInput" accept="video/*,image/*,audio/*">
+
+  <button onclick="submitEntry()">Upload</button>
+  <button onclick="closeJoin()">Cancel</button>
 </div>
-HTML
-<button onclick="db.ref('test').set({ok:true})">
-TEST FIREBASE
-</button>
-  
-<div class="card">
-  <h3>📤 Upload Video</h3>
-  <input type="file" id="file"><br>
-  <input id="name" placeholder="Your name"><br>
-  <input id="side" placeholder="Football or Singing"><br>
-  <button class="upload" onclick="uploadVideo()">Upload</button>
-</div>
-
-<div class="card">
-  <h3>🎥 Videos</h3>
-  <div id="videos"></div>
-</div>
-
-<div class="card">
-  <h3>🗳️ Vote</h3>
-
-  <p>⚽ Football: <span id="fVotes">0</span></p>
-  <button class="vote" onclick="vote('football')">Vote</button>
-  <button class="unvote" onclick="unvote()">Unvote</button>
-
-  <p>🎤 Singing: <span id="sVotes">0</span></p>
-  <button class="vote" onclick="vote('singing')">Vote</button>
-</div>
-
-<div class="card">
-  <h3>🏆 Winner</h3>
-  <p id="winner"></p>
-</div>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 
 <script>
-
 const firebaseConfig = {
   apiKey: "AIzaSyDaMzXq5V2c1KIeb_n-4FRx5zvRqU5mGYg",
   authDomain: "skill-battle-app-1.firebaseapp.com",
@@ -95,136 +91,146 @@ const firebaseConfig = {
   projectId: "skill-battle-app-1",
   storageBucket: "skill-battle-app-1.firebasestorage.app",
   messagingSenderId: "225198548387",
-  appId: "1:225198548387:web:81078805f48d021603a616"
+  appId: "1:225198548387:web:b31d3a34db52263303a616"
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const db = firebase.database();
 const storage = firebase.storage();
 
-/* ---------------- USER ID SYSTEM ---------------- */
+let currentBattle = null;
 
-let userId = localStorage.getItem("userId");
+// USER ID
+const userId = localStorage.getItem("userId") || Date.now().toString();
+localStorage.setItem("userId", userId);
 
-if (!userId) {
-  userId = "user_" + Math.random().toString(36).substr(2, 9);
-  localStorage.setItem("userId", userId);
+// CREATE BATTLE
+function createBattle() {
+  const id = Date.now();
+  const creatorA = document.getElementById("creatorA").value;
+  const creatorB = document.getElementById("creatorB").value;
+  const optionA = document.getElementById("optionA").value;
+  const optionB = document.getElementById("optionB").value;
+
+  db.ref("battles/" + id).set({
+    creatorA,
+    creatorB,
+    optionA,
+    optionB,
+    createdAt: Date.now(),
+    endTime: Date.now() + 3600000
+  });
 }
 
-/* ---------------- VIDEO UPLOAD ---------------- */
+// LOAD BATTLES (SCROLL FEED)
+db.ref("battles").on("value", snap => {
+  const feed = document.getElementById("feed");
+  feed.innerHTML = "";
 
-function uploadVideo() {
-  let file = document.getElementById("file").files[0];
-  let name = document.getElementById("name").value;
-  let side = document.getElementById("side").value;
+  const battles = snap.val() || {};
 
-  if (!file || !name || !side) {
-    alert("Fill all fields");
-    return;
-  }
+  Object.entries(battles).forEach(([id, b]) => {
+    const div = document.createElement("div");
+    div.className = "card";
 
-  let ref = storage.ref("videos/" + Date.now());
+    div.innerHTML = `
+      <h2>${b.creatorA} (${b.optionA}) VS ${b.creatorB} (${b.optionB})</h2>
 
-  ref.put(file).then(() => {
-    ref.getDownloadURL().then(url => {
-      db.ref("videos").push({
-        name: name,
-        side: side,
-        url: url
+      <p id="votes-${id}">Votes loading...</p>
+
+      <button onclick="vote('${id}','A')">Vote A</button>
+      <button onclick="vote('${id}','B')">Vote B</button>
+
+      <button onclick="openJoin('${id}')">⚔️ Join Battle</button>
+
+      <div id="uploads-${id}"></div>
+    `;
+
+    feed.appendChild(div);
+
+    loadVotes(id);
+    loadUploads(id);
+  });
+});
+
+// VOTING
+function vote(id, choice) {
+  db.ref("votes/" + id + "/" + userId).set(choice);
+}
+
+function loadVotes(id) {
+  db.ref("votes/" + id).on("value", snap => {
+    const data = snap.val() || {};
+    let a = 0, b = 0;
+
+    Object.values(data).forEach(v => {
+      if (v === "A") a++;
+      else b++;
+    });
+
+    document.getElementById("votes-" + id).innerText =
+      "A: " + a + " | B: " + b;
+  });
+}
+
+// JOIN
+function openJoin(id) {
+  currentBattle = id;
+  document.getElementById("joinModal").style.display = "block";
+}
+
+function closeJoin() {
+  document.getElementById("joinModal").style.display = "none";
+}
+
+// UPLOAD
+function submitEntry() {
+  const file = document.getElementById("fileInput").files[0];
+  const team = document.getElementById("team").value;
+
+  if (!file) return alert("Select file");
+
+  const ref = storage.ref("uploads/" + currentBattle + "/" + userId + file.name);
+
+  ref.put(file).then(snap => {
+    snap.ref.getDownloadURL().then(url => {
+      db.ref("uploads/" + currentBattle + "/" + userId).set({
+        team,
+        file: url,
+        type: file.type
       });
+
       alert("Uploaded!");
+      closeJoin();
     });
   });
 }
 
-/* ---------------- LOAD VIDEOS ---------------- */
+// SHOW UPLOADS
+function loadUploads(id) {
+  db.ref("uploads/" + id).on("value", snap => {
+    const data = snap.val() || {};
+    const container = document.getElementById("uploads-" + id);
+    container.innerHTML = "";
 
-db.ref("videos").on("value", snap => {
-  let data = snap.val() || {};
-  let box = document.getElementById("videos");
-  box.innerHTML = "";
+    Object.values(data).forEach(entry => {
+      let el;
 
-  for (let id in data) {
-    let v = data[id];
-    box.innerHTML += `
-      <div>
-        <b>${v.name}</b> - ${v.side}<br>
-        <video controls src="${v.url}"></video>
-      </div>
-    `;
-  }
-});
+      if (entry.type.startsWith("video")) {
+        el = document.createElement("video");
+        el.controls = true;
+      } else if (entry.type.startsWith("image")) {
+        el = document.createElement("img");
+      } else {
+        el = document.createElement("audio");
+        el.controls = true;
+      }
 
-/* ---------------- VOTING SYSTEM FIXED ---------------- */
-
-function vote(choice) {
-  db.ref("votes/" + userId).set(choice);
+      el.src = entry.file;
+      container.appendChild(el);
+    });
+  });
 }
-
-function unvote() {
-  db.ref("votes/" + userId).remove();
-}
-
-/* ---------------- COUNT VOTES ---------------- */
-
-db.ref("votes").on("value", snap => {
-
-  let data = snap.val() || {};
-
-  let football = 0;
-  let singing = 0;
-
-  for (let user in data) {
-    if (data[user] === "football") football++;
-    if (data[user] === "singing") singing++;
-  }
-
-  document.getElementById("fVotes").innerText = football;
-  document.getElementById("sVotes").innerText = singing;
-
-  updateWinner(football, singing);
-});
-
-/* ---------------- WINNER ---------------- */
-
-function updateWinner(f, s) {
-  let winner = "";
-
-  if (f > s) winner = "⚽ Football is winning";
-  else if (s > f) winner = "🎤 Singing is winning";
-  else winner = "⚔️ Tie";
-
-  document.getElementById("winner").innerText = winner;
-}
-
-/* ---------------- TIMER (1 HOUR) ---------------- */
-
-let endTime = localStorage.getItem("endTime");
-
-if (!endTime) {
-  endTime = Date.now() + (60 * 60 * 1000);
-  localStorage.setItem("endTime", endTime);
-}
-
-function updateTimer() {
-
-  let remaining = endTime - Date.now();
-
-  if (remaining <= 0) {
-    document.getElementById("timer").innerText = "🔥 Battle Ended!";
-    return;
-  }
-
-  let m = Math.floor(remaining / 60000);
-  let s = Math.floor((remaining % 60000) / 1000);
-
-  document.getElementById("timer").innerText = `⏳ ${m}m ${s}s`;
-}
-
-setInterval(updateTimer, 1000);
-updateTimer();
-
 </script>
 
 </body>
